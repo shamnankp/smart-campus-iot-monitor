@@ -1,0 +1,27 @@
+# Secrets and credentials: NEVER commit these
+simulator/certs/
+*.pem
+*.key
+*.tfvars
+.env
+
+# Terraform state and downloaded providers (state contains the IoT private keys)
+*.tfstate*
+.terraform/
+terraform/build/
+crash.log
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Local test files
+test.json
+out.json
+
+# Editor and OS files
+.vscode/
+.DS_Store
+Thumbs.db

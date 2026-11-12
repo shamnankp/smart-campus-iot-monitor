@@ -1,0 +1,3 @@
+alert_email      = "you@example.com"
+dashboard_domain = "campus.example.com"
+# auto_actions_enabled = "true"   # set to "false" to switch off automatic actions

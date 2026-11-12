@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Smart Campus Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="config.js"></script>
+<style>
+:root{--bg:#f0faf8;--card:#fff;--text:#12302b;--muted:#5b7a74;--line:#d8ece8;--ok:#16a34a;--warn:#f59e0b;--bad:#e11d48;--off:#94a3b8;--accent:#0d9488;--ok-bg:#f0fdf4;--warn-bg:#fffbeb;--bad-bg:#fff1f2}
+@media (prefers-color-scheme:dark){:root{--bg:#0a1614;--card:#12211f;--text:#e3f4f1;--muted:#8fb5ae;--line:#1f3a36;--accent:#2dd4bf;--ok-bg:#12261c;--warn-bg:#2a2210;--bad-bg:#2d1217}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(120deg,#115e59,#0d9488 55%,#10b981);color:#fff;padding:22px 28px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+header h1{margin:0;font-size:22px;letter-spacing:.2px}
+header p{margin:4px 0 0;opacity:.85;font-size:13px}
+.pill{background:#ffffff26;border-radius:999px;padding:6px 14px;font-size:13px;display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:#4ade80;animation:pulse 1.6s infinite}
+.dot.err{background:#f87171;animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 #4ade8099}100%{box-shadow:0 0 0 10px #4ade8000}}
+main{max-width:1200px;margin:0 auto;padding:22px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.kpi small{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+.kpi b{display:block;font-size:28px;margin-top:6px}
+h2{font-size:16px;margin:26px 0 12px}
+#cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-top:5px solid var(--ok);border-radius:14px;padding:14px}
+.card.ok{background:var(--ok-bg)}
+.card.warn{background:var(--warn-bg);border-top-color:var(--warn)}
+.card.bad{background:var(--bad-bg);border-color:var(--bad);border-top-color:var(--bad)}
+.card.off{border-top-color:var(--off);opacity:.75}
+.card .top{display:flex;justify-content:space-between;align-items:center}
+.card .zone{font-weight:700}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;color:#fff;background:var(--ok)}
+.badge.warn{background:var(--warn)}.badge.bad{background:var(--bad)}.badge.off{background:var(--off)}
+.dev{color:var(--muted);font-size:12px}
+.row{margin-top:10px;font-size:13px}
+.row span{display:flex;justify-content:space-between}
+.bar{height:6px;background:var(--line);border-radius:6px;margin-top:4px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:6px}
+.temps{display:flex;gap:14px;margin-top:10px;font-size:14px}
+.chips{min-height:8px}
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--accent);color:var(--accent);margin:8px 6px 0 0}
+.ts{margin-top:10px;color:var(--muted);font-size:11px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+select{padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+td.prob{font-weight:600}
+td.auto{color:var(--accent)}
+.wrap{overflow-x:auto}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+</style></head>
+<body>
+<header>
+  <div><h1>Smart Campus: Energy &amp; Air Quality</h1><p>Live telemetry from campus building nodes via AWS IoT Core</p></div>
+  <div class="pill"><span class="dot" id="dot"></span><span id="status">Connecting...</span></div>
+</header>
+<main>
+  <section class="kpis" id="kpis"></section>
+  <h2>Campus zones</h2>
+  <section id="cards"></section>
+  <h2>Trends</h2>
+  <section class="panel">
+    <div class="controls">
+      <select id="dev"></select>
+      <select id="metric">
+        <option value="PowerConsumption">Power (kW)</option>
+        <option value="CO2">CO2 (ppm)</option>
+        <option value="AirQuality">Air quality index</option>
+        <option value="Temperature">Temperature (C)</option>
+        <option value="Humidity">Humidity (%)</option>
+      </select>
+    </div>
+    <canvas id="chart" height="95"></canvas>
+  </section>
+  <h2>Detected problems, recommendations and automatic actions</h2>
+  <section class="panel wrap"><table id="alerts"></table></section>
+</main>
+<footer>AWS IoT Core · Lambda · DynamoDB · SNS · API Gateway · CloudFront · refreshes every 5 seconds</footer>
+<script>
+const $ = id => document.getElementById(id);
+const get = p => fetch(window.API_URL + p).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const list = a => (a && a.length ? a.map(esc).join("<br>") : "-");
+const time = t => new Date(t * 1000).toLocaleTimeString();
+const LIMITS = {Temperature: 35, CO2: 1000, AirQuality: 150, PowerConsumption: 50};
+const METRICS = {
+  PowerConsumption: {label: "Power (kW)", color: "#0d9488"},
+  CO2: {label: "CO2 (ppm)", color: "#f59e0b"},
+  AirQuality: {label: "Air quality index", color: "#7c3aed"},
+  Temperature: {label: "Temperature (C)", color: "#ea580c"},
+  Humidity: {label: "Humidity (%)", color: "#2563eb"}
+};
+const OFFLINE_AFTER = 60;
+let chart;
+
+function state(d) {
+  if (Date.now() / 1000 - d.Timestamp > OFFLINE_AFTER) return "off";
+  const ratios = Object.keys(LIMITS).map(k => d[k] / LIMITS[k]);
+  const worst = Math.max(...ratios);
+  return worst > 1 ? "bad" : worst > 0.8 ? "warn" : "ok";
+}
+const LABEL = {ok: "Normal", warn: "Watch", bad: "Alert", off: "Offline"};
+function bar(name, val, unit, key) {
+  const pct = Math.min(100, val / LIMITS[key] * 100);
+  const col = pct > 100 ? "var(--bad)" : pct > 80 ? "var(--warn)" : "var(--ok)";
+  return `<div class="row"><span><em>${name}</em><b>${val.toFixed(0)} ${unit}</b></span>
+    <div class="bar"><i style="width:${pct}%;background:${col}"></i></div></div>`;
+}
+function chips(d) {
+  const c = [];
+  if (d.Ventilation === "boost") c.push("Ventilation boost active");
+  if (d.HvacMode === "eco") c.push("HVAC eco mode active");
+  return `<div class="chips">${c.map(t => `<span class="chip">${t}</span>`).join("")}</div>`;
+}
+
+async function refresh() {
+  try {
+    const latest = await get("/latest");
+    const alerts = await get("/alerts");
+    const online = latest.filter(d => state(d) !== "off");
+    const sum = (a, k) => a.reduce((s, d) => s + d[k], 0);
+    const autos = alerts.filter(a => (a.Actions || []).some(x => x.startsWith("Sent command"))).length;
+    $("kpis").innerHTML = [
+      ["Nodes online", `${online.length} / ${latest.length}`],
+      ["Total power", `${sum(online, "PowerConsumption").toFixed(1)} kW`],
+      ["Average CO2", online.length ? `${(sum(online, "CO2") / online.length).toFixed(0)} ppm` : "-"],
+      ["Average air quality", online.length ? `${(sum(online, "AirQuality") / online.length).toFixed(0)} AQI` : "-"],
+      ["Recent alerts", alerts.length],
+      ["Automatic actions", autos]
+    ].map(([t, v]) => `<div class="kpi"><small>${t}</small><b>${v}</b></div>`).join("");
+
+    $("cards").innerHTML = latest.map(d => {
+      const s = state(d);
+      return `<div class="card ${s}">
+        <div class="top"><span class="zone">${esc(d.Zone)}</span><span class="badge ${s}">${LABEL[s]}</span></div>
+        <div class="dev">${esc(d.DeviceID)}</div>
+        <div class="temps"><span>Temp ${d.Temperature.toFixed(1)} C</span><span>Humidity ${d.Humidity.toFixed(0)} %</span></div>
+        ${bar("Power", d.PowerConsumption, "kW", "PowerConsumption")}
+        ${bar("CO2", d.CO2, "ppm", "CO2")}
+        ${bar("Air quality", d.AirQuality, "AQI", "AirQuality")}
+        ${s === "off" ? "" : chips(d)}
+        <div class="ts">Last reading ${time(d.Timestamp)}</div></div>`;
+    }).join("");
+
+    if (!$("dev").options.length)
+      $("dev").innerHTML = latest.map(d => `<option value="${esc(d.DeviceID)}">${esc(d.Zone)} (${esc(d.DeviceID)})</option>`).join("");
+
+    const m = $("metric").value;
+    const h = await get("/history?deviceId=" + encodeURIComponent($("dev").value));
+    const data = {labels: h.map(x => time(x.Timestamp)), datasets: [
+      {label: METRICS[m].label, data: h.map(x => x[m]), borderColor: METRICS[m].color,
+       backgroundColor: METRICS[m].color + "22", fill: true, tension: .3, pointRadius: 0, borderWidth: 2}]};
+    if (LIMITS[m]) data.datasets.push({label: "Alert limit", data: h.map(() => LIMITS[m]),
+      borderColor: "#e11d48", borderDash: [6, 6], pointRadius: 0, borderWidth: 1.5});
+    if (chart) { chart.data = data; chart.update("none"); }
+    else chart = new Chart($("chart"), {type: "line", data, options: {animation: false,
+      interaction: {mode: "index", intersect: false}, plugins: {legend: {position: "bottom"}}}});
+
+    $("alerts").innerHTML = "<tr><th>Time</th><th>Zone</th><th>Problem</th><th>Detected</th><th>Recommended action</th><th>Automatic action</th></tr>" +
+      (alerts.length ? alerts.map(x => `<tr><td>${time(x.Timestamp)}</td><td>${esc(x.Zone)}</td>
+        <td class="prob">${list(x.Problems)}</td><td>${list(x.Reasons)}</td>
+        <td>${list(x.Recommendations)}</td><td class="auto">${list(x.Actions)}</td></tr>`).join("") :
+        '<tr><td colspan="6">No alerts. All zones are normal.</td></tr>');
+
+    $("dot").className = "dot";
+    $("status").textContent = "Live · updated " + new Date().toLocaleTimeString();
+  } catch (e) {
+    $("dot").className = "dot err";
+    $("status").textContent = "Connection problem, retrying...";
+  }
+}
+$("dev").onchange = refresh;
+$("metric").onchange = () => { chart && chart.destroy(); chart = null; refresh(); };
+refresh(); setInterval(refresh, 5000);
+</script></body></html>
