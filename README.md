@@ -4,6 +4,45 @@ A serverless AWS project that watches simulated campus buildings in real time, d
 
 ![Dashboard with automatic actions](docs/images/dashboard-actions.png)
 
+## In simple words
+
+Think of a smartwatch, but for a building. Sensors in every room measure temperature, humidity, air quality and electricity use all day. This project collects those measurements in the cloud and notices when something looks wrong, for example stuffy air or an air conditioner wasting electricity. It emails the facilities team with advice on what to do, and for small, safe problems it switches on a fix by itself, such as running the ventilation harder. For serious problems it never acts alone: it asks a person to decide.
+
+No real building is involved. A Python program simulates the sensors, so anyone can try the whole system safely.
+
+**An example, step by step**
+
+1. The air in the Computer Lab starts getting stuffy and the CO2 level climbs.
+2. The system notices the change, even before it becomes dangerous.
+3. It emails the facilities team: "Poor indoor air quality. Improve ventilation..."
+4. It turns the lab's ventilation to boost for 15 minutes.
+5. The dashboard shows "Ventilation boost active", and the CO2 falls back to normal.
+
+## What I built
+
+- Designed the architecture on 10 AWS services (IoT Core, Rules Engine, Lambda, DynamoDB, S3, SNS, API Gateway, CloudFront, IAM, CloudWatch).
+- Wrote all infrastructure as code with Terraform, so the whole system can be created or removed with one command.
+- Built a simulator of 5 sensor nodes that connect securely with device certificates and also react to commands.
+- Wrote the processing logic in Python: fixed limits, a machine learning anomaly model, problem diagnosis with recommendations, email alerts and safe automatic actions.
+- Built a live dashboard (HTML, JavaScript, Chart.js) with zone cards, trends and a problems table, delivered over HTTPS on a custom domain.
+- Secured the system with least-privilege roles, private storage, device certificates, and a rule that critical actions are never automatic.
+- Added monitoring with CloudWatch alarms and logs, and tested normal data, injected faults, a critical overload, an offline sensor and an alarm.
+
+## Glossary
+
+| Term | In plain English |
+|---|---|
+| IoT | Everyday devices (here, sensors) connected to the internet |
+| MQTT | A lightweight messaging system devices use to send readings |
+| AWS IoT Core | The AWS service that receives messages from the devices |
+| Lambda | Small pieces of code that run in the cloud only when needed |
+| DynamoDB | A cloud database that stores the readings and alerts |
+| SNS | The service that sends the alert emails |
+| CloudFront | The secure front door that serves the dashboard to browsers |
+| Terraform | A tool that builds the whole cloud setup from text files |
+| Anomaly detection | Finding readings that look unusual compared with normal |
+| Machine learning model | A program that learns what "normal" looks like from past data |
+
 ## Why this project exists
 
 Commercial and educational buildings waste energy through unmonitored HVAC cycles and have little visibility into indoor air quality, which affects health and productivity. Traditional monitoring needs expensive on-premise hardware and SCADA software. This project shows a low-cost cloud alternative: sensors stream to AWS, the cloud detects problems, tells people what to do, and when it is safe, acts by itself.
@@ -240,7 +279,7 @@ Then delete the DNS records you added.
 ## Design decisions
 
 - **Lambda instead of Kinesis:** simpler and cheaper at this scale.
-- **A small ML model inside Lambda instead of Amazon Lookout for Metrics:** no extra service or cost. Lookout for Metrics is, as far as I know, being retired by AWS, so please verify its status.
+- **A small ML model inside Lambda instead of a managed ML service:** no extra service or cost, and the logic is easy to read and test. A managed service such as Amazon SageMaker could replace it later.
 - **Terraform for everything:** the whole stack is reproducible from this repository.
 
 ## Author
